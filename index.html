@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Virtual Chicane Rally Telemetry</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron (Digital Motorsport), Rajdhani, Share Tech Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0f17;
+            color: #e2e8f0;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .font-mono-digital {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* Carbon fiber texture background pattern */
+        .carbon-bg {
+            background: 
+                linear-gradient(27deg, #121824 5px, transparent 5px) 0 5px,
+                linear-gradient(207deg, #121824 5px, transparent 5px) 10px 0,
+                linear-gradient(27deg, #121824 5px, transparent 5px) 15px 5px,
+                linear-gradient(207deg, #121824 5px, transparent 5px) 25px 0,
+                linear-gradient(150deg, #090d14 25%, #0d121c 25%, #0d121c 50%, transparent 50%, transparent 75%, #0d121c 75%),
+                linear-gradient(30deg, #090d14 25%, #0d121c 25%, #0d121c 50%, transparent 50%, transparent 75%, #0d121c 75%);
+            background-size: 30px 30px;
+            background-color: #080b11;
+        }
+
+        /* Dynamic Cockpit HUD Visual Glow States */
+        .hud-state-neutral {
+            border-color: #00E5FF;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.2);
+        }
+
+        .hud-state-approaching {
+            border-color: #FFD700;
+            box-shadow: 0 0 45px rgba(255, 215, 0, 0.4);
+            animation: pulse-yellow 1s infinite alternate;
+        }
+
+        .hud-state-overspeed {
+            border-color: #FF2A2A;
+            background: radial-gradient(circle, rgba(255,42,42,0.25) 0%, rgba(15,10,15,0.95) 80%);
+            box-shadow: 0 0 60px rgba(255, 42, 42, 0.7);
+            animation: flash-red 0.35s infinite alternate;
+        }
+
+        .hud-state-cleared {
+            border-color: #00FF66;
+            background: radial-gradient(circle, rgba(0,255,102,0.25) 0%, rgba(10,20,15,0.95) 80%);
+            box-shadow: 0 0 65px rgba(0, 255, 102, 0.85);
+            animation: pulse-green 1.2s infinite alternate;
+        }
+
+        @keyframes pulse-yellow {
+            from { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+            to { box-shadow: 0 0 50px rgba(255, 215, 0, 0.7); }
+        }
+
+        @keyframes flash-red {
+            from { opacity: 1; border-color: #FF2A2A; }
+            to { opacity: 0.85; border-color: #FF8888; background: rgba(255, 0, 0, 0.35); }
+        }
+
+        @keyframes pulse-green {
+            from { box-shadow: 0 0 30px rgba(0, 255, 102, 0.4); }
+            to { box-shadow: 0 0 75px rgba(0, 255, 102, 0.95); }
+        }
+
+        /* Custom Scrollbar for Audit Log */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d121c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a364f;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="carbon-bg min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden">
+
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand & Subtitle -->
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-cyan-600 to-blue-500 rounded-xl shadow-lg shadow-cyan-500/30">
+                    <i class="fa-solid fa-flag-checkered text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-orbitron text-lg sm:text-xl font-black tracking-wider text-white flex items-center gap-2">
+                        VIRTUAL CHICANE <span class="text-xs font-semibold px-2.5 py-0.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-full">FIA RALLY SPEC</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">GPS Geofenced Speed Limiter & Telemetry Engine</p>
+                </div>
+            </div>
+
+            <!-- Controls: GPS Status & Setup Toggle -->
+            <div class="flex items-center gap-2 sm:gap-4 ml-auto">
+                <!-- GPS Status Pill -->
+                <div id="gps-status-badge" class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs font-mono-digital flex items-center gap-2">
+                    <span id="gps-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span id="gps-status-text" class="text-amber-400 font-bold">INITIALIZING GPS</span>
+                </div>
+
+                <!-- Setup Modal Toggle Button -->
+                <button onclick="toggleModal('modal-settings')" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 hover:text-white transition shadow-md">
+                    <i class="fa-solid fa-gear text-base"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full px-3 py-4 sm:px-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        
+        <!-- LEFT COLUMN: Main Cockpit HUD & Speedometer (7 Cols) -->
+        <div class="lg:col-span-7 flex flex-col justify-between gap-4">
+            
+            <!-- Chicane Status Banner -->
+            <div id="hud-banner" class="bg-slate-900/90 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 text-center transition-all duration-300 shadow-xl">
+                <div class="flex items-center justify-between text-xs uppercase font-bold tracking-widest text-slate-400 mb-1">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-bullseye text-cyan-400"></i> Zone Target: <span class="text-cyan-400 font-orbitron" id="display-target-speed">37 MPH</span>
+                    </span>
+                    <span id="zone-distance-badge" class="font-mono-digital text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">100m GEOFENCE</span>
+                </div>
+                <div id="hud-status-title" class="font-orbitron text-2xl sm:text-3xl font-black text-slate-200 tracking-wide my-1">
+                    SEARCHING FOR GPS
+                </div>
+                <div id="hud-status-sub" class="text-xs sm:text-sm font-semibold text-slate-400">
+                    Awaiting device satellite position fix.
+                </div>
+            </div>
+
+            <div id="hud-container" class="hud-state-neutral relative flex-1 min-h-[320px] sm:min-h-[380px] bg-slate-950/90 border-4 rounded-3xl p-6 flex flex-col items-center justify-center text-center transition-all duration-300 overflow-hidden shadow-2xl">
+                
+                <!-- Background Radial Ring Accent -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                    <div class="w-80 h-80 rounded-full border-[18px] border-cyan-400 animate-pulse"></div>
+                </div>
+
+                <!-- Main Dynamic Speed Readout -->
+                <div class="relative z-10 flex flex-col items-center">
+                    <!-- Top Telemetry Tag -->
+                    <div id="speed-tag" class="text-[11px] font-black font-orbitron tracking-widest uppercase px-3 py-1 bg-slate-800/80 border border-slate-700 rounded-full text-slate-300 mb-2">
+                        LIVE GPS SPEED TELEMETRY
+                    </div>
+
+                    <!-- Speed Display Number -->
+                    <div class="flex items-baseline justify-center">
+                        <span id="speed-value" class="font-orbitron font-black text-7xl sm:text-9xl tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)]">
+                            0
+                        </span>
+                        <span id="speed-unit" class="font-orbitron font-bold text-xl sm:text-3xl text-slate-400 ml-2">
+                            MPH
+                        </span>
+                    </div>
+
+                    <!-- Speedometer Gauge Progress Bar -->
+                    <div class="w-64 sm:w-80 bg-slate-900 border border-slate-800 h-4 rounded-full mt-4 p-0.5 overflow-hidden shadow-inner">
+                        <div id="speed-bar" class="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full transition-all duration-200" style="width: 0%;"></div>
+                    </div>
+
+                    <!-- Required Threshold Badges -->
+                    <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                        <div class="flex items-center gap-1.5 text-xs font-mono-digital bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl">
+                            <span class="text-slate-500">REQ MAX:</span>
+                            <span class="text-amber-400 font-bold" id="req-max-badge">37 MPH</span>
+                        </div>
+                        <div id="compliance-badge" class="flex items-center gap-1.5 text-xs font-mono-digital bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl">
+                            <span class="text-slate-500">STATUS:</span>
+                            <span id="compliance-text" class="text-slate-400 font-bold">READY</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cockpit Audio Mute Toggle Button -->
+                <button id="btn-audio-toggle" onclick="toggleAudio()" class="absolute bottom-4 right-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 transition shadow-md">
+                    <i id="audio-icon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                    <span id="audio-status-text" class="font-mono-digital">AUDIO ON</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-center shadow-lg">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Chicane Distance</p>
+                    <p id="tel-distance" class="font-orbitron text-xl sm:text-2xl font-bold text-cyan-400 mt-1">-- m</p>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-center shadow-lg">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Min Zone Speed</p>
+                    <p id="tel-min-speed" class="font-orbitron text-xl sm:text-2xl font-bold text-slate-200 mt-1">--</p>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-center shadow-lg">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">GPS Accuracy</p>
+                    <p id="tel-accuracy" class="font-orbitron text-xl sm:text-2xl font-bold text-emerald-400 mt-1">-- m</p>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-center shadow-lg">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Pass Status</p>
+                    <p id="tel-pass-status" class="font-orbitron text-xl sm:text-2xl font-bold text-slate-400 mt-1">CLEAR</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Interactive Stage Radar & Pass Log (5 Cols) -->
+        <div class="lg:col-span-5 flex flex-col justify-between gap-4">
+            
+            <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 flex flex-col items-center justify-between relative shadow-xl">
+                <div class="w-full flex items-center justify-between mb-2">
+                    <span class="font-orbitron text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-radar text-cyan-400 animate-spin" style="animation-duration: 4s;"></i>
+                        Stage Geofence Radar
+                    </span>
+                    <button onclick="setChicaneToCurrentLocation()" class="text-[11px] font-mono-digital text-cyan-400 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/50 px-2 py-0.5 rounded-md transition flex items-center gap-1">
+                        <i class="fa-solid fa-location-crosshairs"></i> Set GPS Here
+                    </button>
+                </div>
+
+                <!-- Canvas Radar Display -->
+                <div class="relative w-full aspect-square max-h-[270px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                    <canvas id="radar-canvas" class="w-full h-full block"></canvas>
+
+                    <!-- Overlay Marker Badge -->
+                    <div class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono-digital text-slate-400 px-2 py-1 rounded-md flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span> Chicane Target
+                    </div>
+                </div>
+
+                <div class="w-full text-center mt-2 flex items-center justify-around text-xs font-mono-digital text-slate-400">
+                    <span>LAT: <strong id="chicane-lat-disp" class="text-slate-200">53.1887</strong></span>
+                    <span>LNG: <strong id="chicane-lng-disp" class="text-slate-200">-3.1254</strong></span>
+                </div>
+            </div>
+
+            <!-- Chicane Pass Audit Log -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl flex-grow flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-orbitron text-xs font-bold uppercase text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-cyan-400"></i> Chicane Pass Audit Log
+                    </h3>
+                    <button onclick="clearAuditLog()" class="text-[10px] text-slate-500 hover:text-slate-300 font-mono-digital underline">
+                        Clear Log
+                    </button>
+                </div>
+
+                <div id="audit-log-container" class="flex-grow min-h-[160px] max-h-[240px] overflow-y-auto space-y-2 pr-1 font-mono-digital text-xs">
+                    <div class="text-slate-500 text-center py-6 italic">No chicane passes logged yet.</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-orbitron text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyan-400"></i> Stage Geofence Settings
+                </h3>
+                <button onclick="toggleModal('modal-settings')" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Chicane Latitude</label>
+                    <input id="input-lat" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono-digital focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Chicane Longitude</label>
+                    <input id="input-lng" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono-digital focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Max Speed Limit (MPH)</label>
+                    <input id="input-max-speed" type="number" value="37" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono-digital focus:outline-none focus:border-cyan-500">
+                </div>
+            </div>
+
+            <div class="pt-2 flex gap-3">
+                <button onclick="saveSettings()" class="flex-1 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl transition font-orbitron text-xs">
+                    SAVE & APPLY
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telemetry Core JavaScript Engine -->
+    <script>
+        // State Variables
+        let chicaneCoords = { lat: 53.1887, lng: -3.1254 }; // Default coordinates
+        let maxSpeedLimitMPH = 37;
+        let geofenceRadiusMeters = 100;
+        
+        let currentDistance = null;
+        let currentSpeedMPH = 0;
+        let minZoneSpeedMPH = Infinity;
+        let inZone = false;
+        let audioEnabled = true;
+        let watchId = null;
+
+        // Audio Synth Context
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playBeep(freq, duration) {
+            if (!audioEnabled || audioCtx.state === 'suspended') return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn('Audio playback error:', e);
+            }
+        }
+
+        // Haversine formula for exact distance between GPS coordinates in meters
+        function getDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        // Initialize GPS Hardware Watcher
+        function initGPS() {
+            if ('geolocation' in navigator) {
+                watchId = navigator.geolocation.watchPosition(
+                    handlePositionUpdate,
+                    handlePositionError,
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            } else {
+                updateGPSStatus('NO GPS SUPPORT', 'red');
+            }
+        }
+
+        function handlePositionUpdate(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+
+            // Convert m/s to MPH (pos.coords.speed gives m/s or null)
+            const rawSpeed = pos.coords.speed !== null ? pos.coords.speed : 0;
+            currentSpeedMPH = Math.round(rawSpeed * 2.23694);
+
+            currentDistance = getDistanceMeters(lat, lng, chicaneCoords.lat, chicaneCoords.lng);
+
+            updateGPSStatus('GPS ACTIVE', 'emerald');
+            document.getElementById('tel-accuracy').innerText = `± ${accuracy.toFixed(1)} m`;
+
+            processTelemetry(currentDistance, currentSpeedMPH, lat, lng);
+        }
+
+        function handlePositionError(err) {
+            console.warn('GPS Error:', err);
+            updateGPSStatus('GPS ERROR', 'red');
+        }
+
+        function updateGPSStatus(text, color) {
+            const textEl = document.getElementById('gps-status-text');
+            const dotEl = document.getElementById('gps-indicator-dot');
+            textEl.innerText = text;
+            
+            if (color === 'emerald') {
+                textEl.className = 'text-emerald-400 font-bold';
+                dotEl.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+            } else if (color === 'red') {
+                textEl.className = 'text-rose-400 font-bold';
+                dotEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+            } else {
+                textEl.className = 'text-amber-400 font-bold';
+                dotEl.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+            }
+        }
+
+        function processTelemetry(distanceMeters, speedMPH, currentLat, currentLng) {
+            // Update Speedometer UI
+            document.getElementById('speed-value').innerText = speedMPH;
+            const barWidth = Math.min(100, Math.max(0, (speedMPH / 100) * 100));
+            document.getElementById('speed-bar').style.width = `${barWidth}%`;
+            document.getElementById('tel-distance').innerText = `${Math.round(distanceMeters)} m`;
+
+            const hudContainer = document.getElementById('hud-container');
+            const hudTitle = document.getElementById('hud-status-title');
+            const hudSub = document.getElementById('hud-status-sub');
+
+            // Zone Entrance & Exit Geofence Logic
+            if (distanceMeters <= geofenceRadiusMeters) {
+                if (!inZone) {
+                    inZone = true;
+                    minZoneSpeedMPH = speedMPH;
+                    playBeep(880, 0.2); // Entry Warning Tone
+                } else {
+                    if (speedMPH < minZoneSpeedMPH) {
+                        minZoneSpeedMPH = speedMPH;
+                    }
+                }
+
+                document.getElementById('tel-min-speed').innerText = `${minZoneSpeedMPH} MPH`;
+
+                if (speedMPH > maxSpeedLimitMPH) {
+                    hudContainer.className = 'hud-container hud-state-overspeed relative flex-1 min-h-[320px] sm:min-h-[380px] bg-slate-950/90 border-4 rounded-3xl p-6 flex flex-col items-center justify-center text-center transition-all duration-300 overflow-hidden shadow-2xl';
+                    hudTitle.innerText = 'OVERSPEED DETECTED';
+                    hudTitle.className = 'font-orbitron text-2xl sm:text-3xl font-black text-rose-500 tracking-wide my-1';
+                    hudSub.innerText = `SLOW DOWN! EXCEEDS ${maxSpeedLimitMPH} MPH LIMIT`;
+                    document.getElementById('compliance-text').innerText = 'NON-COMPLIANT';
+                    document.getElementById('compliance-text').className = 'text-rose-500 font-bold';
+                    playBeep(440, 0.1);
+                } else {
+                    hudContainer.className = 'hud-container hud-state-approaching relative flex-1 min-h-[320px] sm:min-h-[380px] bg-slate-950/90 border-4 rounded-3xl p-6 flex flex-col items-center justify-center text-center transition-all duration-300 overflow-hidden shadow-2xl';
+                    hudTitle.innerText = 'IN CHICANE ZONE';
+                    hudTitle.className = 'font-orbitron text-2xl sm:text-3xl font-black text-amber-400 tracking-wide my-1';
+                    hudSub.innerText = 'Maintain speed under target threshold';
+                    document.getElementById('compliance-text').innerText = 'COMPLIANT';
+                    document.getElementById('compliance-text').className = 'text-emerald-400 font-bold';
+                }
+            } else {
+                // Outside Chicane Zone
+                if (inZone) {
+                    // Chicane Pass Exit - Log Entry
+                    inZone = false;
+                    const passed = minZoneSpeedMPH <= maxSpeedLimitMPH;
+                    logPass(minZoneSpeedMPH, passed);
+                    
+                    if (passed) {
+                        playBeep(1200, 0.3);
+                        document.getElementById('tel-pass-status').innerText = 'PASSED';
+                        document.getElementById('tel-pass-status').className = 'font-orbitron text-xl sm:text-2xl font-bold text-emerald-400 mt-1';
+                    } else {
+                        playBeep(300, 0.5);
+                        document.getElementById('tel-pass-status').innerText = 'PENALTY';
+                        document.getElementById('tel-pass-status').className = 'font-orbitron text-xl sm:text-2xl font-bold text-rose-500 mt-1';
+                    }
+                }
+
+                hudContainer.className = 'hud-container hud-state-neutral relative flex-1 min-h-[320px] sm:min-h-[380px] bg-slate-950/90 border-4 rounded-3xl p-6 flex flex-col items-center justify-center text-center transition-all duration-300 overflow-hidden shadow-2xl';
+                hudTitle.innerText = 'OUTSIDE GEOFENCE';
+                hudTitle.className = 'font-orbitron text-2xl sm:text-3xl font-black text-slate-200 tracking-wide my-1';
+                hudSub.innerText = 'Maintain stage pace. Zone triggers speed check at 100 meters.';
+                document.getElementById('compliance-text').innerText = 'READY';
+                document.getElementById('compliance-text').className = 'text-slate-400 font-bold';
+            }
+
+            renderRadar(distanceMeters);
+        }
+
+        function renderRadar(distanceMeters) {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const maxRadarRange = 300; // 300 meters max visual scale
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Radar Concentric Rings
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            for (let r = 1; r <= 3; r++) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, (height / 2 - 10) * (r / 3), 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Draw Geofence 100m Zone
+            const geofencePixelRadius = ((height / 2 - 10) * (geofenceRadiusMeters / maxRadarRange));
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, geofencePixelRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(0, 229, 255, 0.05)';
+            ctx.fill();
+            ctx.strokeStyle = '#00e5ff';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Target Center (Chicane)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+
+            // Draw Vehicle Indicator if distance is known
+            if (distanceMeters !== null) {
+                const clampedDist = Math.min(distanceMeters, maxRadarRange);
+                const vehicleOffsetPixels = (height / 2 - 10) * (clampedDist / maxRadarRange);
+                const vehicleY = centerY + vehicleOffsetPixels;
+
+                ctx.beginPath();
+                ctx.arc(centerX, vehicleY, 7, 0, 2 * Math.PI);
+                ctx.fillStyle = distanceMeters <= geofenceRadiusMeters ? '#ffd700' : '#00e5ff';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        function logPass(minSpeed, isPassed) {
+            const container = document.getElementById('audit-log-container');
+            const timeStr = new Date().toLocaleTimeString();
+            
+            if (container.children.length === 1 && container.children[0].tagName === 'DIV' && container.children[0].innerText.includes('No chicane passes')) {
+                container.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = `p-2.5 rounded-xl border flex items-center justify-between ${isPassed ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' : 'bg-rose-950/30 border-rose-800/50 text-rose-300'}`;
+            item.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${isPassed ? 'fa-circle-check text-emerald-400' : 'fa-triangle-exclamation text-rose-400'}"></i>
+                    <span><strong>${minSpeed} MPH</strong> (Min Zone)</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] opacity-75">${timeStr}</span>
+                    <span class="ml-2 font-bold">${isPassed ? 'PASSED' : 'PENALTY'}</span>
+                </div>
+            `;
+            container.prepend(item);
+        }
+
+        function clearAuditLog() {
+            const container = document.getElementById('audit-log-container');
+            container.innerHTML = '<div class="text-slate-500 text-center py-6 italic">No chicane passes logged yet.</div>';
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            if (audioEnabled && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const statusText = document.getElementById('audio-status-text');
+            const icon = document.getElementById('audio-icon');
+            statusText.innerText = audioEnabled ? 'AUDIO ON' : 'MUTED';
+            icon.className = audioEnabled ? 'fa-solid fa-volume-high text-cyan-400' : 'fa-solid fa-volume-xmark text-slate-500';
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('input-lat').value = chicaneCoords.lat;
+                document.getElementById('input-lng').value = chicaneCoords.lng;
+                document.getElementById('input-max-speed').value = maxSpeedLimitMPH;
+            }
+        }
+
+        function saveSettings() {
+            const lat = parseFloat(document.getElementById('input-lat').value);
+            const lng = parseFloat(document.getElementById('input-lng').value);
+            const maxSpd = parseInt(document.getElementById('input-max-speed').value, 10);
+
+            if (!isNaN(lat) && !isNaN(lng)) {
+                chicaneCoords.lat = lat;
+                chicaneCoords.lng = lng;
+                document.getElementById('chicane-lat-disp').innerText = lat.toFixed(4);
+                document.getElementById('chicane-lng-disp').innerText = lng.toFixed(4);
+            }
+
+            if (!isNaN(maxSpd) && maxSpd > 0) {
+                maxSpeedLimitMPH = maxSpd;
+                document.getElementById('display-target-speed').innerText = `${maxSpeedLimitMPH} MPH`;
+                document.getElementById('req-max-badge').innerText = `${maxSpeedLimitMPH} MPH`;
+            }
+
+            toggleModal('modal-settings');
+        }
+
+        function setChicaneToCurrentLocation() {
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    chicaneCoords.lat = pos.coords.latitude;
+                    chicaneCoords.lng = pos.coords.longitude;
+                    document.getElementById('chicane-lat-disp').innerText = chicaneCoords.lat.toFixed(4);
+                    document.getElementById('chicane-lng-disp').innerText = chicaneCoords.lng.toFixed(4);
+                    alert(`Chicane GPS target updated to current location:\nLat: ${chicaneCoords.lat}\nLng: ${chicaneCoords.lng}`);
+                }, err => {
+                    alert('Unable to retrieve current location for chicane positioning.');
+                });
+            }
+        }
+
+        // Window Init
+        window.addEventListener('load', () => {
+            initGPS();
+            renderRadar(null);
+        });
+
+        window.addEventListener('resize', () => {
+            renderRadar(currentDistance);
+        });
+    </script>
+</body>
+</html>
