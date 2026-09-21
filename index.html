@@ -66,21 +66,19 @@
     <!-- Compact Header Bar -->
     <header class="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl px-3 py-2 flex-shrink-0">
         <div class="flex items-center gap-2">
-            <i class="fa-solid fa-flag-checkered text-cyan-400 text-base"></i>
-            <h1 class="text-xs sm:text-sm font-black tracking-wider text-white">VIRTUAL CHICANE</h1>
+            <i class="fa-solid fa-flag-checkered text-cyan-400 text-sm"></i>
+            <h1 id="app-title" class="text-xs font-black tracking-wider text-white">VIRTUAL CHICANE</h1>
         </div>
 
-        <div class="flex items-center gap-2 font-mono-digital text-xs">
-            <div id="gps-status-badge" class="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
-                <span id="gps-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                <span id="gps-status-text" class="text-amber-400 font-bold text-[11px]">INIT GPS</span>
+        <div class="flex items-center gap-1.5 font-mono-digital text-xs">
+            <!-- Micro GPS Status Badge -->
+            <div id="gps-status-badge" class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
+                <span id="gps-dot" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                <span id="gps-status-text" class="text-amber-400 font-bold text-[10px] tracking-tight">INIT GPS</span>
             </div>
 
             <button onclick="toggleAudio()" class="p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300">
                 <i id="audio-icon" class="fa-solid fa-volume-high text-cyan-400 text-xs"></i>
-            </button>
-            <button onclick="toggleModal('modal-settings')" class="p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300">
-                <i class="fa-solid fa-gear text-xs"></i>
             </button>
         </div>
     </header>
@@ -88,10 +86,13 @@
     <!-- Main Dynamic Cockpit HUD -->
     <main id="hud-card" class="state-neutral border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200">
         
-        <!-- Status Banner -->
+        <!-- Target Chicane & Limit Banner -->
         <div class="w-full flex items-center justify-between font-mono-digital text-xs uppercase px-1">
-            <span class="text-slate-400">LIMIT: <strong id="disp-limit" class="text-cyan-400 text-xs sm:text-sm">37 MPH</strong></span>
-            <span id="disp-distance" class="text-slate-300 bg-slate-900 px-2.5 py-0.5 rounded-lg border border-slate-800 text-xs">DIST: -- m</span>
+            <div class="flex flex-col">
+                <span id="disp-target-id" class="text-[10px] text-cyan-400 font-bold tracking-wider">TARGET: SEARCHING...</span>
+                <span class="text-slate-400 text-xs">LIMIT: <strong id="disp-limit" class="text-cyan-400 text-xs sm:text-sm">-- MPH</strong></span>
+            </div>
+            <span id="disp-distance" class="text-slate-300 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 text-xs font-bold">DIST: -- m</span>
         </div>
 
         <!-- Main Center Speed / GO Display -->
@@ -127,46 +128,21 @@
         </div>
         <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-1.5">
             <p class="text-[9px] text-slate-400 uppercase font-bold">Pass Status</p>
-            <p id="tel-status" class="text-sm font-bold text-slate-400">READY</p>
+            <p id="tel-status" class="text-sm font-bold text-slate-400">AUTO SEARCH</p>
         </div>
     </footer>
 
-    <!-- Settings Modal -->
-    <div id="modal-settings" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-4 space-y-3 font-mono-digital">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <h3 class="font-bold text-white text-xs">CHICANE SETTINGS</h3>
-                <button onclick="toggleModal('modal-settings')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-2 text-xs">
-                <div>
-                    <label class="block text-slate-400 mb-0.5">LATITUDE</label>
-                    <input id="input-lat" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white">
-                </div>
-                <div>
-                    <label class="block text-slate-400 mb-0.5">LONGITUDE</label>
-                    <input id="input-lng" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white">
-                </div>
-                <div>
-                    <label class="block text-slate-400 mb-0.5">MAX SPEED LIMIT (MPH)</label>
-                    <input id="input-limit" type="number" value="37" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white">
-                </div>
-            </div>
-            <div class="flex gap-2 pt-1">
-                <button onclick="setChicaneHere()" class="flex-1 py-2 bg-slate-800 border border-slate-700 text-cyan-400 rounded-lg font-bold text-xs">
-                    <i class="fa-solid fa-crosshairs"></i> SET HERE
-                </button>
-                <button onclick="saveSettings()" class="flex-1 py-2 bg-cyan-500 text-slate-950 rounded-lg font-bold text-xs">
-                    SAVE
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Telemetry Core JS -->
     <script>
-        let chicaneCoords = { lat: 53.1887, lng: -3.1254 };
-        let speedLimitMPH = 37;
+        // Fallback default route if route.json isn't present
+        let routeData = {
+            event: "EVENT ROUTE",
+            chicanes: [
+                { id: "CHICANE 1", lat: 53.1887, lng: -3.1254, limit_mph: 37 }
+            ]
+        };
+
+        let currentTarget = null;
         let geofenceMeters = 100;
 
         let currentDistance = null;
@@ -177,6 +153,22 @@
         let audioEnabled = true;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Load JSON Event Data on boot
+        async function loadRouteJSON() {
+            try {
+                const response = await fetch('route.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.chicanes && data.chicanes.length > 0) {
+                        routeData = data;
+                        document.getElementById('app-title').innerText = routeData.event.toUpperCase();
+                    }
+                }
+            } catch (e) {
+                console.log('Using default inline route dataset.');
+            }
+        }
 
         function playBeep(freq, duration) {
             if (!audioEnabled || audioCtx.state === 'suspended') return;
@@ -204,6 +196,37 @@
             return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         }
 
+        // Auto-select nearest upcoming chicane from JSON list
+        function updateNearestChicane(lat, lng) {
+            if (!routeData.chicanes || routeData.chicanes.length === 0) return;
+
+            let closest = null;
+            let minDistance = Infinity;
+
+            routeData.chicanes.forEach(chicane => {
+                const dist = getDistanceMeters(lat, lng, chicane.lat, chicane.lng);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closest = chicane;
+                }
+            });
+
+            if (closest) {
+                // If target changes, reset zone cleared states
+                if (!currentTarget || currentTarget.id !== closest.id) {
+                    currentTarget = closest;
+                    clearedZone = false;
+                    inZone = false;
+                    minZoneSpeedMPH = Infinity;
+                    document.getElementById('tel-min-speed').innerText = '--';
+                }
+
+                document.getElementById('disp-target-id').innerText = `TARGET: ${currentTarget.id}`;
+                document.getElementById('disp-limit').innerText = `${currentTarget.limit_mph} MPH`;
+                currentDistance = minDistance;
+            }
+        }
+
         function initGPS() {
             if ('geolocation' in navigator) {
                 navigator.geolocation.watchPosition(
@@ -214,49 +237,58 @@
                         const rawSpeed = pos.coords.speed !== null ? pos.coords.speed : 0;
                         currentSpeedMPH = Math.round(rawSpeed * 2.23694);
 
-                        currentDistance = getDistanceMeters(lat, lng, chicaneCoords.lat, chicaneCoords.lng);
+                        // Find closest chicane automatically
+                        updateNearestChicane(lat, lng);
 
                         document.getElementById('gps-status-text').innerText = 'GPS ACTIVE';
-                        document.getElementById('gps-status-text').className = 'text-emerald-400 font-bold text-[11px]';
-                        document.getElementById('gps-dot').className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                        document.getElementById('gps-status-text').className = 'text-emerald-400 font-bold text-[10px] tracking-tight';
+                        document.getElementById('gps-dot').className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
                         document.getElementById('tel-accuracy').innerText = `± ${accuracy.toFixed(1)} m`;
 
-                        processTelemetry(currentDistance, currentSpeedMPH);
+                        if (currentTarget) {
+                            processTelemetry(currentDistance, currentSpeedMPH, currentTarget.limit_mph);
+                        }
                     },
                     err => {
-                        document.getElementById('gps-status-text').innerText = 'GPS ERROR';
-                        document.getElementById('gps-status-text').className = 'text-rose-400 font-bold text-[11px]';
-                        document.getElementById('gps-dot').className = 'w-2 h-2 rounded-full bg-rose-500';
+                        document.getElementById('gps-status-text').innerText = 'GPS ERR';
+                        document.getElementById('gps-status-text').className = 'text-rose-400 font-bold text-[10px] tracking-tight';
+                        document.getElementById('gps-dot').className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
                     },
                     { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
                 );
             }
         }
 
-        function processTelemetry(dist, speed) {
+        function processTelemetry(dist, speed, speedLimit) {
             document.getElementById('speed-display').innerText = speed;
-            document.getElementById('disp-distance').innerText = `DIST: ${Math.round(dist)} m`;
+
+            // Clean distance formatting
+            const distText = dist >= 1000 
+                ? `${(dist / 1000).toFixed(1)} km` 
+                : `${Math.round(dist)} m`;
+            document.getElementById('disp-distance').innerText = `DIST: ${distText}`;
+
             document.getElementById('speed-bar').style.width = `${Math.min(100, (speed / 80) * 100)}%`;
 
             const hud = document.getElementById('hud-card');
             const clearanceBanner = document.getElementById('clearance-banner');
             const statusText = document.getElementById('tel-status');
 
-            // Entering Geofence
+            // Inside 100m Geofence
             if (dist <= geofenceMeters) {
                 if (!inZone) {
                     inZone = true;
                     clearedZone = false;
                     minZoneSpeedMPH = speed;
-                    playBeep(880, 0.2); // Beep on zone entry
+                    playBeep(880, 0.2); // Entry chime
                 } else {
                     if (speed < minZoneSpeedMPH) minZoneSpeedMPH = speed;
                 }
 
                 document.getElementById('tel-min-speed').innerText = `${minZoneSpeedMPH} MPH`;
 
-                // Speed Check Logic: Instantly confirm compliance once speed drops below threshold
-                if (speed <= speedLimitMPH || clearedZone) {
+                // Compliance Check
+                if (speed <= speedLimit || clearedZone) {
                     if (!clearedZone) {
                         clearedZone = true;
                         playBeep(1200, 0.3); // Instant confirmation chime
@@ -266,7 +298,6 @@
                     statusText.innerText = 'CLEARED';
                     statusText.className = 'text-sm font-bold text-emerald-400';
                 } else {
-                    // Entering / Overspeed state
                     hud.className = 'state-overspeed border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
                     clearanceBanner.classList.add('hidden');
                     statusText.innerText = 'CHECK SPEED';
@@ -274,7 +305,7 @@
                     playBeep(440, 0.1);
                 }
             } else {
-                // Flash BLUE when approaching near geofence boundary (100m to 180m)
+                // Approaching Zone (100m - 180m)
                 if (dist <= geofenceMeters + 80) {
                     hud.className = 'state-entering border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
                     statusText.innerText = 'APPROACHING';
@@ -298,45 +329,8 @@
             document.getElementById('audio-icon').className = audioEnabled ? 'fa-solid fa-volume-high text-cyan-400' : 'fa-solid fa-volume-xmark text-slate-500';
         }
 
-        function toggleModal(id) {
-            const modal = document.getElementById(id);
-            modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) {
-                document.getElementById('input-lat').value = chicaneCoords.lat;
-                document.getElementById('input-lng').value = chicaneCoords.lng;
-                document.getElementById('input-limit').value = speedLimitMPH;
-            }
-        }
-
-        function saveSettings() {
-            const lat = parseFloat(document.getElementById('input-lat').value);
-            const lng = parseFloat(document.getElementById('input-lng').value);
-            const limit = parseInt(document.getElementById('input-limit').value, 10);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-                chicaneCoords.lat = lat;
-                chicaneCoords.lng = lng;
-            }
-            if (!isNaN(limit) && limit > 0) {
-                speedLimitMPH = limit;
-                document.getElementById('disp-limit').innerText = `${speedLimitMPH} MPH`;
-            }
-            toggleModal('modal-settings');
-        }
-
-        function setChicaneHere() {
-            if ('geolocation' in navigator) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    chicaneCoords.lat = pos.coords.latitude;
-                    chicaneCoords.lng = pos.coords.longitude;
-                    document.getElementById('input-lat').value = chicaneCoords.lat;
-                    document.getElementById('input-lng').value = chicaneCoords.lng;
-                    alert('Chicane set to current location!');
-                });
-            }
-        }
-
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+            await loadRouteJSON();
             initGPS();
         });
     </script>
