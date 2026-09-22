@@ -305,21 +305,30 @@
                     playBeep(440, 0.1);
                 }
             } else {
-                // Approaching Zone (100m - 180m)
+                // Approaching or Leaving Zone (100m - 180m)
                 if (dist <= geofenceMeters + 80) {
-                    hud.className = 'state-entering border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
-                    statusText.innerText = 'APPROACHING';
-                    statusText.className = 'text-sm font-bold text-cyan-400';
+                    if (clearedZone) {
+                        // Hold solid green state while accelerating out of zone
+                        hud.className = 'state-cleared border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
+                        statusText.innerText = 'CLEARED';
+                        statusText.className = 'text-sm font-bold text-emerald-400';
+                        clearanceBanner.classList.remove('hidden');
+                    } else {
+                        // Flash blue on approach
+                        hud.className = 'state-entering border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
+                        statusText.innerText = 'APPROACHING';
+                        statusText.className = 'text-sm font-bold text-cyan-400';
+                    }
                 } else {
+                    // Completely clear (>180m) - reset HUD for next chicane
                     hud.className = 'state-neutral border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
                     statusText.innerText = 'READY';
                     statusText.className = 'text-sm font-bold text-slate-400';
+                    
+                    if (inZone) inZone = false;
+                    clearedZone = false;
+                    clearanceBanner.classList.add('hidden');
                 }
-
-                if (inZone) {
-                    inZone = false;
-                }
-                clearanceBanner.classList.add('hidden');
             }
         }
 
