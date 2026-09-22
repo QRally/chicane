@@ -3,20 +3,20 @@
   "chicanes": [
     {
       "id": "SS1 - CHICANE 1",
-      "lat": 52.146897,
-      "lng": -4.056914,
+      "lat": 52.180972,
+      "lng": -4.126162,
       "limit_mph": 37
     },
     {
       "id": "SS1 - CHICANE 2",
-      "lat": 52.120674,
-      "lng": -4.078526,
-      "limit_mph": 30
+      "lat": 52.163332,
+      "lng": -4.131729,
+      "limit_mph": 37
     },
     {
       "id": "SS2 - CHICANE 1",
-      "lat": 52.126096,
-      "lng": -4.098659,
+      "lat": 52.147657,
+      "lng": -4.111898,
       "limit_mph": 37
     }
   ]
