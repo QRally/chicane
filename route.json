@@ -14,6 +14,12 @@
       "limit_mph": 37
     },
     {
+      "id": "SS1 - CHICANE 3",
+      "lat": 52.171168,
+      "lng": -4.132353,
+      "limit_mph": 37
+    },
+    {
       "id": "SS2 - CHICANE 1",
       "lat": 52.147657,
       "lng": -4.111898,
