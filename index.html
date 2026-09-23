@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Virtual Chicane Telemetry</title>
+    <title>Virtual Chicane Telemetry v1.2</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Orbitron & Share Tech Mono -->
@@ -126,10 +126,12 @@
             <p class="text-[9px] text-slate-400 uppercase font-bold">GPS Accuracy</p>
             <p id="tel-accuracy" class="text-sm font-bold text-emerald-400">-- m</p>
         </div>
-        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-1.5">
-            <p class="text-[9px] text-slate-400 uppercase font-bold">Pass Status</p>
-            <p id="tel-status" class="text-sm font-bold text-slate-400">AUTO SEARCH</p>
-        </div>
+        <button onclick="exportPassLogs()" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl p-1.5 flex flex-col items-center justify-center active:scale-95 transition-all">
+            <p class="text-[9px] text-cyan-400 uppercase font-bold flex items-center gap-1">
+                <i class="fa-solid fa-download text-[8px]"></i> Export JSON
+            </p>
+            <p id="tel-log-count" class="text-sm font-bold text-slate-200">LOG (0)</p>
+        </button>
     </footer>
 
     <!-- Telemetry Core JS -->
@@ -151,6 +153,13 @@
         let inZone = false;
         let clearedZone = false;
         let audioEnabled = true;
+
+        let currentLat = null;
+        let currentLng = null;
+        let currentAccuracy = 0;
+
+        // Pass History Memory Array
+        let passLogs = [];
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -231,19 +240,19 @@
             if ('geolocation' in navigator) {
                 navigator.geolocation.watchPosition(
                     pos => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        const accuracy = pos.coords.accuracy;
+                        currentLat = pos.coords.latitude;
+                        currentLng = pos.coords.longitude;
+                        currentAccuracy = pos.coords.accuracy;
                         const rawSpeed = pos.coords.speed !== null ? pos.coords.speed : 0;
                         currentSpeedMPH = Math.round(rawSpeed * 2.23694);
 
                         // Find closest chicane automatically
-                        updateNearestChicane(lat, lng);
+                        updateNearestChicane(currentLat, currentLng);
 
                         document.getElementById('gps-status-text').innerText = 'GPS ACTIVE';
                         document.getElementById('gps-status-text').className = 'text-emerald-400 font-bold text-[10px] tracking-tight';
                         document.getElementById('gps-dot').className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
-                        document.getElementById('tel-accuracy').innerText = `± ${accuracy.toFixed(1)} m`;
+                        document.getElementById('tel-accuracy').innerText = `± ${currentAccuracy.toFixed(1)} m`;
 
                         if (currentTarget) {
                             processTelemetry(currentDistance, currentSpeedMPH, currentTarget.limit_mph);
@@ -259,6 +268,42 @@
             }
         }
 
+        function recordPassLog() {
+            if (!currentTarget || minZoneSpeedMPH === Infinity) return;
+
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                event: routeData.event,
+                target_id: currentTarget.id,
+                speed_limit_mph: currentTarget.limit_mph,
+                min_recorded_speed_mph: minZoneSpeedMPH,
+                passed_compliance: minZoneSpeedMPH <= currentTarget.limit_mph,
+                gps_accuracy_m: parseFloat(currentAccuracy.toFixed(1)),
+                car_coords: {
+                    lat: currentLat,
+                    lng: currentLng
+                }
+            };
+
+            passLogs.push(logEntry);
+            document.getElementById('tel-log-count').innerText = `LOG (${passLogs.length})`;
+        }
+
+        function exportPassLogs() {
+            if (passLogs.length === 0) {
+                alert("No chicane passes logged yet in this session.");
+                return;
+            }
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(passLogs, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `chicane_pass_logs_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
         function processTelemetry(dist, speed, speedLimit) {
             document.getElementById('speed-display').innerText = speed;
 
@@ -272,7 +317,6 @@
 
             const hud = document.getElementById('hud-card');
             const clearanceBanner = document.getElementById('clearance-banner');
-            const statusText = document.getElementById('tel-status');
 
             // Inside 100m Geofence
             if (dist <= geofenceMeters) {
@@ -295,13 +339,9 @@
                     }
                     hud.className = 'state-cleared border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
                     clearanceBanner.classList.remove('hidden');
-                    statusText.innerText = 'CLEARED';
-                    statusText.className = 'text-sm font-bold text-emerald-400';
                 } else {
                     hud.className = 'state-overspeed border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
                     clearanceBanner.classList.add('hidden');
-                    statusText.innerText = 'CHECK SPEED';
-                    statusText.className = 'text-sm font-bold text-rose-400';
                     playBeep(440, 0.1);
                 }
             } else {
@@ -310,22 +350,19 @@
                     if (clearedZone) {
                         // Hold solid green state while accelerating out of zone
                         hud.className = 'state-cleared border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
-                        statusText.innerText = 'CLEARED';
-                        statusText.className = 'text-sm font-bold text-emerald-400';
                         clearanceBanner.classList.remove('hidden');
                     } else {
                         // Flash blue on approach
                         hud.className = 'state-entering border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
-                        statusText.innerText = 'APPROACHING';
-                        statusText.className = 'text-sm font-bold text-cyan-400';
                     }
                 } else {
-                    // Completely clear (>180m) - reset HUD for next chicane
+                    // Completely clear (>180m) - Record Log & reset HUD for next chicane
+                    if (inZone) {
+                        recordPassLog(); // Silent automatic record entry
+                        inZone = false;
+                    }
+
                     hud.className = 'state-neutral border-4 rounded-3xl my-2 p-3 flex-1 flex flex-col items-center justify-between min-h-0 transition-all duration-200';
-                    statusText.innerText = 'READY';
-                    statusText.className = 'text-sm font-bold text-slate-400';
-                    
-                    if (inZone) inZone = false;
                     clearedZone = false;
                     clearanceBanner.classList.add('hidden');
                 }
